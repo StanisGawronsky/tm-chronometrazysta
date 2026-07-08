@@ -4,7 +4,7 @@ import { renderReportHtml } from './report.js';
 /**
  * @param {HTMLElement} root
  * @param {import('./state.js').Session} session
- * @param {{ onAddSpeaker: (name: string) => void, onNewMeeting: () => void, onPresetChange: (id: string, presetId: string) => void, onCustomTimeChange: (id: string, field: 't1'|'t2'|'t3', value: string) => void, onStart: (id: string) => void, onPause: (id: string) => void, onResume: (id: string) => void, onStop: (id: string) => void, onCopyReport: () => void }} handlers
+ * @param {{ onAddSpeaker: (name: string) => void, onNewMeeting: () => void, onImportCsv: (file: File) => void, onCopyAiPrompt: () => void, onPresetChange: (id: string, presetId: string) => void, onCustomTimeChange: (id: string, field: 't1'|'t2'|'t3', value: string) => void, onStart: (id: string) => void, onPause: (id: string) => void, onResume: (id: string) => void, onStop: (id: string) => void, onCopyReport: () => void }} handlers
  * @param {{ flag: string, inGrace: boolean, active: boolean }} bgState
  */
 export function renderApp(root, session, handlers, bgState) {
@@ -30,10 +30,12 @@ export function renderApp(root, session, handlers, bgState) {
         />
         <button type="button" class="btn btn-primary" data-action="add-speaker">+</button>
       </section>
+
+      ${session.speakers.length === 0 ? renderEmptyAgenda() : ''}
+
       <p class="error-msg hidden" data-el="error"></p>
 
       <section class="speakers" data-el="speakers">
-        ${session.speakers.length === 0 ? '<p class="empty">Dodaj mówców przyciskiem +</p>' : ''}
         ${session.speakers.map((s) => renderSpeakerCard(s, presets, activeId, hasActiveTimer)).join('')}
       </section>
 
@@ -42,6 +44,7 @@ export function renderApp(root, session, handlers, bgState) {
         ${renderReportHtml(session.speakers)}
         <button type="button" class="btn btn-secondary" data-action="copy-report">Kopiuj raport</button>
         <p class="copy-toast hidden" data-el="copy-toast">Skopiowano!</p>
+        <p class="copy-toast hidden" data-el="prompt-toast">Prompt skopiowany!</p>
       </section>
     </div>
   `;
@@ -64,6 +67,19 @@ export function renderApp(root, session, handlers, bgState) {
   input?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') submitAdd();
   });
+
+  const csvInput = root.querySelector('[data-input="csv-file"]');
+  root.querySelector('[data-action="import-csv"]')?.addEventListener('click', () => {
+    if (csvInput instanceof HTMLInputElement) csvInput.click();
+  });
+  csvInput?.addEventListener('change', (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement) || !target.files?.[0]) return;
+    handlers.onImportCsv(target.files[0]);
+    target.value = '';
+  });
+
+  root.querySelector('[data-action="copy-ai-prompt"]')?.addEventListener('click', handlers.onCopyAiPrompt);
 
   root.querySelector('[data-action="copy-report"]')?.addEventListener('click', handlers.onCopyReport);
 
@@ -100,6 +116,20 @@ export function renderApp(root, session, handlers, bgState) {
     if (action === 'resume') el.addEventListener('click', () => handlers.onResume(id));
     if (action === 'stop') el.addEventListener('click', () => handlers.onStop(id));
   });
+}
+
+function renderEmptyAgenda() {
+  return `
+    <section class="empty-agenda">
+      <p class="empty">Brak mówców na agendzie. Dodaj ręcznie (+) lub wgraj CSV.</p>
+      <div class="empty-agenda-actions">
+        <input type="file" accept=".csv,text/csv" class="hidden" data-input="csv-file" />
+        <button type="button" class="btn btn-secondary btn-lg" data-action="import-csv">Wgraj CSV</button>
+        <button type="button" class="btn btn-ghost btn-lg" data-action="copy-ai-prompt">Kopiuj prompt AI</button>
+      </div>
+      <p class="empty-agenda-hint">Prompt AI opisuje format CSV do wygenerowania ze zdjęcia agendy.</p>
+    </section>
+  `;
 }
 
 /**
@@ -268,7 +298,17 @@ export function showError(root, message) {
 
 /** @param {HTMLElement} root */
 export function showCopyToast(root) {
-  const el = root.querySelector('[data-el="copy-toast"]');
+  showToast(root, 'copy-toast');
+}
+
+/** @param {HTMLElement} root */
+export function showPromptToast(root) {
+  showToast(root, 'prompt-toast');
+}
+
+/** @param {HTMLElement} root @param {string} elName */
+function showToast(root, elName) {
+  const el = root.querySelector(`[data-el="${elName}"]`);
   if (!(el instanceof HTMLElement)) return;
   el.classList.remove('hidden');
   setTimeout(() => el.classList.add('hidden'), 2000);

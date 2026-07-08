@@ -1,12 +1,14 @@
 import {
   addSpeaker,
   clearSession,
+  importSpeakersFromCsv,
   loadSession,
   setActiveSpeaker,
   setSpeakerCustomTime,
   setSpeakerPreset,
   updateSpeaker,
 } from './state.js';
+import { AI_CSV_PROMPT, parseAgendaCsv } from './csv-import.js';
 import {
   evaluateResult,
   formatTimeMs,
@@ -16,7 +18,7 @@ import {
 } from './presets.js';
 import { createTimerEngine } from './timer-engine.js';
 import { buildReportLines } from './report.js';
-import { applyBackground, renderApp, showCopyToast, showError, updateTimerDisplay } from './ui.js';
+import { applyBackground, renderApp, showCopyToast, showError, showPromptToast, updateTimerDisplay } from './ui.js';
 import './styles.css';
 
 const root = document.getElementById('app');
@@ -54,6 +56,8 @@ function rerender() {
     {
       onAddSpeaker: handleAddSpeaker,
       onNewMeeting: handleNewMeeting,
+      onImportCsv: handleImportCsv,
+      onCopyAiPrompt: handleCopyAiPrompt,
       onPresetChange: handlePresetChange,
       onCustomTimeChange: handleCustomTimeChange,
       onStart: handleStart,
@@ -86,6 +90,61 @@ function handleNewMeeting() {
   bgState.flag = 'neutral';
   bgState.inGrace = false;
   rerender();
+}
+
+async function handleImportCsv(file) {
+  if (session.speakers.length > 0) {
+    showError(root, 'Import CSV dostępny tylko przy pustej agendzie.');
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const { rows, errors } = parseAgendaCsv(text);
+
+    if (rows.length === 0) {
+      showError(root, errors.join(' ') || 'Nie udało się wczytać CSV.');
+      rerender();
+      return;
+    }
+
+    importSpeakersFromCsv(session, rows);
+    const warning = errors.length > 0 ? ` (${errors.length} wierszy pominięto)` : '';
+    showError(root, errors.length > 0 ? errors.slice(0, 3).join(' ') + warning : '');
+    if (errors.length === 0) showError(root, '');
+    rerender();
+  } catch {
+    showError(root, 'Nie udało się odczytać pliku CSV.');
+    rerender();
+  }
+}
+
+async function handleCopyAiPrompt() {
+  try {
+    await navigator.clipboard.writeText(AI_CSV_PROMPT);
+    showPromptToast(root);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = AI_CSV_PROMPT;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showPromptToast(root);
+  }
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
 }
 
 function handlePresetChange(speakerId, presetId) {
@@ -224,18 +283,8 @@ function handleStop(speakerId) {
 
 async function handleCopyReport() {
   const { text } = buildReportLines(session.speakers);
-  try {
-    await navigator.clipboard.writeText(text);
-    showCopyToast(root);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showCopyToast(root);
-  }
+  await copyText(text);
+  showCopyToast(root);
 }
 
 rerender();

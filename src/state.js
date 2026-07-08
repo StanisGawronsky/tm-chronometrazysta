@@ -155,3 +155,18 @@ export function updateSpeaker(session, speakerId, updates) {
   Object.assign(speaker, updates);
   saveSession(session);
 }
+
+/**
+ * @param {Session} session
+ * @param {import('./csv-import.js').CsvRow[]} rows
+ */
+export function importSpeakersFromCsv(session, rows) {
+  session.speakers = rows.map((row) => {
+    const speaker = createSpeaker(row.name);
+    speaker.presetId = row.presetId;
+    speaker.customTimes = row.presetId === 'custom' ? row.customTimes : null;
+    return speaker;
+  });
+  session.activeSpeakerId = null;
+  saveSession(session);
+}

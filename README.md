@@ -7,6 +7,7 @@ Miniaplikacja dla chronometrażysty Toastmasters Poznań — stoper z flagami, p
 - Dodawanie mówców (input + przycisk **+**)
 - Presety: Mowa 4–5–6, 5–6–7, 7–8–9, Gorące Pytania, Ewaluacja
 - **Własne czasy** — agenda 1 (zielona), 2 (żółta), 3 (czerwona) z formatu `5:00` lub `5`
+- **Import CSV** — przy pustej agendzie: wgraj plik lub skopiuj prompt AI do wygenerowania CSV ze zdjęcia agendy
 - Sterowanie: Start / Pauza / Wznów / Stop
 - Sygnalizacja flag: tło aplikacji zmienia kolor i miga (zielona / żółta / czerwona + grace)
 - Gorące Pytania: 20 s przygotowania, kwalifikacja 1:00–2:30
@@ -60,3 +61,16 @@ Aplikacja będzie dostępna pod: `https://<user>.github.io/tm-chronometrazysta/`
 5. Na koniec spotkania **Kopiuj raport** i odczytaj na scenie.
 
 Jednocześnie może działać tylko jeden aktywny timer.
+
+## Format CSV agendy
+
+```csv
+imie,typ,agenda1,agenda2,agenda3
+Ania,mowa,5:00,6:00,7:00
+Jan,gp,,,
+Piotr,ewaluacja,,,
+```
+
+Typy: `mowa`, `gp`, `ewaluacja`, `speech_4_5_6`, `speech_5_6_7`, `speech_7_8_9`.
+
+Przy pustej agendzie użyj **Kopiuj prompt AI** — wklej do ChatGPT/Claude wraz ze zdjęciem agendy.
