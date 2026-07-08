@@ -5,6 +5,7 @@ const STORAGE_KEY = 'tm-chronometrazysta-session';
  * @property {string} id
  * @property {string} name
  * @property {string|null} presetId
+ * @property {{ t1: number|null, t2: number|null, t3: number|null }|null} [customTimes]
  * @property {'idle'|'prep'|'running'|'paused'|'grace'|'finished'} phase
  * @property {number|null} elapsedMs
  * @property {string|null} finishedAt
@@ -25,6 +26,7 @@ export function createSpeaker(name) {
     id: crypto.randomUUID(),
     name,
     presetId: null,
+    customTimes: null,
     phase: 'idle',
     elapsedMs: null,
     finishedAt: null,
@@ -92,6 +94,36 @@ export function setSpeakerPreset(session, speakerId, presetId) {
   const speaker = session.speakers.find((s) => s.id === speakerId);
   if (!speaker || speaker.phase !== 'idle' && speaker.phase !== 'finished') return;
   speaker.presetId = presetId;
+  if (presetId === 'custom' && !speaker.customTimes) {
+    speaker.customTimes = { t1: null, t2: null, t3: null };
+  }
+  if (presetId !== 'custom') {
+    speaker.customTimes = null;
+  }
+  if (speaker.phase === 'finished') {
+    speaker.phase = 'idle';
+    speaker.elapsedMs = null;
+    speaker.finishedAt = null;
+    speaker.inRange = null;
+    speaker.qualified = null;
+    speaker.status = null;
+  }
+  saveSession(session);
+}
+
+/**
+ * @param {Session} session
+ * @param {string} speakerId
+ * @param {'t1'|'t2'|'t3'} field
+ * @param {number|null} seconds
+ */
+export function setSpeakerCustomTime(session, speakerId, field, seconds) {
+  const speaker = session.speakers.find((s) => s.id === speakerId);
+  if (!speaker || speaker.presetId !== 'custom') return;
+  if (!speaker.customTimes) {
+    speaker.customTimes = { t1: null, t2: null, t3: null };
+  }
+  speaker.customTimes[field] = seconds;
   if (speaker.phase === 'finished') {
     speaker.phase = 'idle';
     speaker.elapsedMs = null;

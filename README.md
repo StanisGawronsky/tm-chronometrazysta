@@ -6,6 +6,7 @@ Miniaplikacja dla chronometrażysty Toastmasters Poznań — stoper z flagami, p
 
 - Dodawanie mówców (input + przycisk **+**)
 - Presety: Mowa 4–5–6, 5–6–7, 7–8–9, Gorące Pytania, Ewaluacja
+- **Własne czasy** — agenda 1 (zielona), 2 (żółta), 3 (czerwona) z formatu `5:00` lub `5`
 - Sterowanie: Start / Pauza / Wznów / Stop
 - Sygnalizacja flag: tło aplikacji zmienia kolor i miga (zielona / żółta / czerwona + grace)
 - Gorące Pytania: 20 s przygotowania, kwalifikacja 1:00–2:30

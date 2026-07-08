@@ -3,10 +3,17 @@ import {
   clearSession,
   loadSession,
   setActiveSpeaker,
+  setSpeakerCustomTime,
   setSpeakerPreset,
   updateSpeaker,
 } from './state.js';
-import { evaluateResult, formatTimeMs, getPreset } from './presets.js';
+import {
+  evaluateResult,
+  formatTimeMs,
+  parseTimeInput,
+  resolveSpeakerPreset,
+  validateCustomTimes,
+} from './presets.js';
 import { createTimerEngine } from './timer-engine.js';
 import { buildReportLines } from './report.js';
 import { applyBackground, renderApp, showCopyToast, showError, updateTimerDisplay } from './ui.js';
@@ -48,6 +55,7 @@ function rerender() {
       onAddSpeaker: handleAddSpeaker,
       onNewMeeting: handleNewMeeting,
       onPresetChange: handlePresetChange,
+      onCustomTimeChange: handleCustomTimeChange,
       onStart: handleStart,
       onPause: handlePause,
       onResume: handleResume,
@@ -83,6 +91,20 @@ function handleNewMeeting() {
 function handlePresetChange(speakerId, presetId) {
   if (!presetId) return;
   setSpeakerPreset(session, speakerId, presetId);
+  showError(root, '');
+  rerender();
+}
+
+function handleCustomTimeChange(speakerId, field, value) {
+  const seconds = parseTimeInput(value);
+  if (value.trim() && seconds == null) {
+    showError(root, 'Niepoprawny format czasu. Użyj np. 5:00 lub 5.');
+    return;
+  }
+  setSpeakerCustomTime(session, speakerId, field, seconds);
+  const speaker = session.speakers.find((s) => s.id === speakerId);
+  const validationError = speaker?.customTimes ? validateCustomTimes(speaker.customTimes) : null;
+  showError(root, validationError ?? '');
   rerender();
 }
 
@@ -99,11 +121,24 @@ function handleStart(speakerId) {
   const speaker = session.speakers.find((s) => s.id === speakerId);
   if (!speaker) return;
 
-  const preset = getPreset(speaker.presetId);
+  const preset = resolveSpeakerPreset(speaker);
   if (!preset) {
-    showError(root, 'Wybierz typ wystąpienia przed startem.');
+    const msg =
+      speaker.presetId === 'custom'
+        ? 'Ustaw czasy z agendy (wymagana agenda 3).'
+        : 'Wybierz typ wystąpienia przed startem.';
+    showError(root, msg);
     rerender();
     return;
+  }
+
+  if (speaker.presetId === 'custom') {
+    const validationError = validateCustomTimes(speaker.customTimes);
+    if (validationError) {
+      showError(root, validationError);
+      rerender();
+      return;
+    }
   }
 
   if (session.activeSpeakerId && session.activeSpeakerId !== speakerId) return;
@@ -167,7 +202,7 @@ function handleStop(speakerId) {
   if (engineSpeakerId !== speakerId || !engine) return;
 
   const speaker = session.speakers.find((s) => s.id === speakerId);
-  const preset = getPreset(speaker?.presetId);
+  const preset = resolveSpeakerPreset(speaker);
   if (!preset || !speaker) return;
 
   const elapsedMs = engine.stop();

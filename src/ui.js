@@ -1,10 +1,10 @@
-import { formatTimeMs, getPreset, getPresetList } from './presets.js';
+import { formatTimeInput, formatTimeMs, getPreset, getPresetList, resolveSpeakerPreset } from './presets.js';
 import { renderReportHtml } from './report.js';
 
 /**
  * @param {HTMLElement} root
  * @param {import('./state.js').Session} session
- * @param {{ onAddSpeaker: (name: string) => void, onNewMeeting: () => void, onPresetChange: (id: string, presetId: string) => void, onStart: (id: string) => void, onPause: (id: string) => void, onResume: (id: string) => void, onStop: (id: string) => void, onCopyReport: () => void }} handlers
+ * @param {{ onAddSpeaker: (name: string) => void, onNewMeeting: () => void, onPresetChange: (id: string, presetId: string) => void, onCustomTimeChange: (id: string, field: 't1'|'t2'|'t3', value: string) => void, onStart: (id: string) => void, onPause: (id: string) => void, onResume: (id: string) => void, onStop: (id: string) => void, onCopyReport: () => void }} handlers
  * @param {{ flag: string, inGrace: boolean, active: boolean }} bgState
  */
 export function renderApp(root, session, handlers, bgState) {
@@ -76,6 +76,20 @@ export function renderApp(root, session, handlers, bgState) {
     });
   });
 
+  root.querySelectorAll('[data-custom-time]').forEach((el) => {
+    if (!(el instanceof HTMLInputElement)) return;
+    const speakerId = el.dataset.speakerId;
+    const field = el.dataset.customTime;
+    if (!speakerId || !field) return;
+
+    const emit = () => {
+      handlers.onCustomTimeChange(speakerId, /** @type {'t1'|'t2'|'t3'} */ (field), el.value);
+    };
+
+    el.addEventListener('change', emit);
+    el.addEventListener('blur', emit);
+  });
+
   root.querySelectorAll('[data-action]').forEach((el) => {
     if (!(el instanceof HTMLButtonElement)) return;
     const action = el.dataset.action;
@@ -97,7 +111,7 @@ export function renderApp(root, session, handlers, bgState) {
 function renderSpeakerCard(speaker, presets, activeId, hasActiveTimer) {
   const isActive = speaker.id === activeId;
   const isLocked = hasActiveTimer && !isActive && speaker.phase !== 'finished';
-  const preset = getPreset(speaker.presetId);
+  const preset = resolveSpeakerPreset(speaker) ?? getPreset(speaker.presetId);
   const canStart = preset && (speaker.phase === 'idle' || speaker.phase === 'finished');
   const isRunning = speaker.phase === 'running' || speaker.phase === 'prep' || speaker.phase === 'grace';
   const isPaused = speaker.phase === 'paused';
@@ -152,6 +166,8 @@ function renderSpeakerCard(speaker, presets, activeId, hasActiveTimer) {
         </select>
       </label>
 
+      ${speaker.presetId === 'custom' ? renderCustomTimes(speaker, isRunning || isPaused) : ''}
+
       ${prepLine}
       <p class="timer-display" data-timer="${speaker.id}">${displayTime}</p>
       ${graceLine}
@@ -164,6 +180,62 @@ function renderSpeakerCard(speaker, presets, activeId, hasActiveTimer) {
         ${(isRunning || isPaused) ? `<button type="button" class="btn btn-danger btn-lg" data-action="stop" data-speaker-id="${speaker.id}">Stop</button>` : ''}
       </div>
     </article>
+  `;
+}
+
+/**
+ * @param {import('./state.js').Speaker} speaker
+ * @param {boolean} disabled
+ */
+function renderCustomTimes(speaker, disabled) {
+  const times = speaker.customTimes ?? { t1: null, t2: null, t3: null };
+
+  return `
+    <div class="custom-times">
+      <p class="custom-times-hint">Czasy z agendy (format np. 5:00 lub 5)</p>
+      <div class="custom-times-grid">
+        <label class="custom-time-field">
+          <span>Agenda 1 · zielona</span>
+          <input
+            type="text"
+            class="input input-sm"
+            inputmode="numeric"
+            placeholder="5:00"
+            data-custom-time="t1"
+            data-speaker-id="${speaker.id}"
+            value="${formatTimeInput(times.t1)}"
+            ${disabled ? 'disabled' : ''}
+          />
+        </label>
+        <label class="custom-time-field">
+          <span>Agenda 2 · żółta</span>
+          <input
+            type="text"
+            class="input input-sm"
+            inputmode="numeric"
+            placeholder="6:00"
+            data-custom-time="t2"
+            data-speaker-id="${speaker.id}"
+            value="${formatTimeInput(times.t2)}"
+            ${disabled ? 'disabled' : ''}
+          />
+        </label>
+        <label class="custom-time-field">
+          <span>Agenda 3 · czerwona</span>
+          <input
+            type="text"
+            class="input input-sm"
+            inputmode="numeric"
+            placeholder="7:00"
+            data-custom-time="t3"
+            data-speaker-id="${speaker.id}"
+            value="${formatTimeInput(times.t3)}"
+            ${disabled ? 'disabled' : ''}
+            required
+          />
+        </label>
+      </div>
+    </div>
   `;
 }
 

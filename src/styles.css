@@ -129,6 +129,42 @@ body.bg-blink-fast {
   font-size: 1rem;
 }
 
+.input-sm {
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.custom-times {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.custom-times-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.custom-times-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.custom-time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+body.bg-yellow .custom-times-hint,
+body.bg-yellow .custom-time-field {
+  color: #333;
+}
+
 .add-speaker .input {
   flex: 1;
 }
